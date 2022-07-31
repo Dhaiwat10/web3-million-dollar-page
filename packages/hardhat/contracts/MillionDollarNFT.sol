@@ -9,9 +9,10 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
     error expired();
     mapping (uint => string) internal _idToURI;
     uint expiryInit;
-
+    uint price; 
     constructor (string memory name, string memory symbol) ERC4907(name, symbol) {
         expiryInit = 1 years; 
+        price = 2 ether;
     }
 
     function setUser(uint256 tokenId, address user, uint64 expires) public override{
@@ -26,6 +27,10 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
        else{
             revert expired();
        }
+    }
+    function setPrice (uint newPrice) external onlyOwner returns (uint){
+        price = newPrice;
+        return price;
     }
 
     function registerUser (uint tokenId, address user, uint expires) internal {
@@ -53,8 +58,12 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
         return interfaceId == type(IERC4907).interfaceId || super.supportsInterface(interfaceId);
     }
 
-    function mint (address to, uint tokenId) external {
+    function mint (address to, uint tokenId) payable external {
         require (msg.sender == tx.origin, "no contracts allowed");
+        require(msg.value > price, "Insufficient Ether");
+        if (block.timestamp >= userExpires(tokenId)){
+            _burn(tokenId);
+        }
         _mint(to, tokenId);
         registerUser(tokenId, to, expiryInit);
         }
@@ -63,6 +72,9 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
     // @param newURI: <baseURI, points to decentralized storage>
      function setBaseURI (string memory newURI, uint tokenId) public {
         require(_isApprovedOrOwner(msg.sender, tokenId));
+        if (block.timestamp >= userExpires(tokenId)){
+            revert expired();
+        }
         _idToURI[tokenId] = newURI;
     }
 
@@ -100,5 +112,3 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
         }
     }
 }
-
-
