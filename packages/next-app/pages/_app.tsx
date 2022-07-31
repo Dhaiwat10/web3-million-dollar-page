@@ -12,7 +12,7 @@ import { publicProvider } from 'wagmi/providers/public';
 import { useIsMounted } from '../hooks';
 
 const { chains, provider } = configureChains(
-  [chain.mainnet, chain.polygon, chain.optimism, chain.arbitrum],
+  [chain.hardhat, chain.localhost],
   [alchemyProvider({ apiKey: process.env.ALCHEMY_ID }), publicProvider()]
 );
 
