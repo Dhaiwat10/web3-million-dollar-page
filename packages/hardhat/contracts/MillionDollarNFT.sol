@@ -10,6 +10,9 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
     mapping (uint => string) internal _idToURI;
     uint expiryInit;
     uint price; 
+
+    event newURI(string indexed baseURI, uint indexed tokenId);
+
     constructor (string memory name, string memory symbol) ERC4907(name, symbol) {
         expiryInit = 1 years; 
         price = 2 ether;
@@ -76,6 +79,7 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
             revert expired();
         }
         _idToURI[tokenId] = newURI;
+        emit newURI(newURI, tokenId);
     }
 
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
