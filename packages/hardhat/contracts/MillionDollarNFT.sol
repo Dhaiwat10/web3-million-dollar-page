@@ -95,6 +95,12 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
     function _baseURI(uint tokenId) internal view virtual returns (string memory) {
         return _idToURI[tokenId];
     }
+    
+    function withdraw (address payable to) external onlyOwner {
+        (bool success,) = to.call {value: address(this).balance}("");
+        require(success);
+    }
+
     function _beforeTokenTransfer(
         address from,
         address to,
