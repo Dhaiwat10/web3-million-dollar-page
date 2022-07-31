@@ -112,10 +112,9 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
         //take over lease
         if(msg.sender == owner()){
             emit UpdateUser(tokenId, address(0), 0);
-
         }
         else if (msg.sender != owner() && block.timestamp < expiry){
-            setUser(tokenId, to, expiry); 
+            _registerUser(tokenId, to, expiry); 
         }
         else{
             revert expired(); 
