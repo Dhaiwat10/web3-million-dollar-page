@@ -10,7 +10,8 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 export default function Home() {
   return (
-    <div className={''}>
+    <div className='p-10'>
+      <h1 className='font-bold text-3xl'>Million Dollar Homepage</h1>
       <ConnectButton />
     </div>
   );
