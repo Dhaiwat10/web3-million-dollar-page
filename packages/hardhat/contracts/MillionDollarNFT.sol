@@ -7,35 +7,21 @@ import "./ERC4907.sol";
     
 contract millionDollarHomepageNFT is ERC4907, Ownable{
     error expired();
+    error registered();
     mapping (uint => string) internal _idToURI;
     uint64 expiryInit;
     uint price; 
-
     event newURI(string indexed baseURI, uint indexed tokenId);
 
     constructor (string memory name, string memory symbol) ERC4907(name, symbol) {
-        expiryInit = 365 days; 
-        price = 2 ether;
+        expiryInit = (uint64((block.timestamp) + 365 days)); 
+        price = 0 ether;
     }
 
-    function setUser(uint256 tokenId, address user, uint64 expires) public override{
-        require(msg.sender == owner() || _isApprovedOrOwner(msg.sender, tokenId), "ERC4907: transfer caller is not owner nor approved");
-        uint64 expiry = _users[tokenId].expires; 
-        if (msg.sender == owner()){
-            registerUser(tokenId, user, expires);
-        }
-        else if(msg.sender != owner() && block.timestamp < expiry){
-            registerUser(tokenId, user, expiry);
-        } 
-       else{
-            revert expired();
-       }
+    function setUser(uint256 tokenId, address user, uint64 expires) public override onlyOwner{
+        registerUser(tokenId, user, expires); 
     }
-    function setPrice (uint newPrice) external onlyOwner returns (uint){
-        price = newPrice;
-        return price;
-    }
-
+ 
     function registerUser (uint tokenId, address user, uint64 expires) internal {
         UserInfo storage info =  _users[tokenId];
         info.user = user;
@@ -43,9 +29,14 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
         emit UpdateUser(tokenId, user, expires);
     }
 
+    function setPrice (uint newPrice) external onlyOwner returns (uint){
+        price = newPrice;
+        return price;
+    }
+
 
     function userOf(uint256 tokenId) public view override returns(address){
-        if( uint256(_users[tokenId].expires) >=  block.timestamp){
+        if( uint64(block.timestamp) < uint64(_users[tokenId].expires)){
             return  _users[tokenId].user;
         }
         else{
@@ -62,22 +53,26 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
     }
 
     function mint (address to, uint tokenId) payable external {
-        require (msg.sender == tx.origin, "no contracts allowed");
-        require(msg.value > price, "Insufficient Ether");
-        if (block.timestamp >= userExpires(tokenId)){
-            _burn(tokenId);
-        }
+        require(msg.value >= price, "Insufficient Ether");
+        require (!_exists(tokenId), "Already Minted");
         _mint(to, tokenId);
         registerUser(tokenId, to, expiryInit);
     }
-    
+    function registerExpiredToken (address to, uint tokenId) external payable{
+        if (userOf(tokenId) == address(0)){
+            //payment logic here
+            _burn(tokenId);
+            _mint(to, tokenId);
+            registerUser(tokenId, to, expiryInit);
+        }
+        else{
+            revert registered();
+        }
+    }
 
     // @param newURI: <baseURI, points to decentralized storage>
      function setBaseURI (string memory newBaseURI, uint tokenId) public {
-        require(_isApprovedOrOwner(msg.sender, tokenId));
-        if (block.timestamp >= userExpires(tokenId)){
-            revert expired();
-        }
+        require(msg.sender == userOf(tokenId), "not user or expired");
         _idToURI[tokenId] = newBaseURI;
         emit newURI(newBaseURI, tokenId);
     }
@@ -101,23 +96,12 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
         require(success);
     }
 
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal virtual override{
-        super._beforeTokenTransfer(from, to, tokenId);
+    function transfer (address from, address to, uint tokenId) external {
         uint64 expiry = _users[tokenId].expires; 
-        delete _users[tokenId];
         //take over lease
-        if(msg.sender == owner()){
-            emit UpdateUser(tokenId, address(0), 0);
-        }
-        else if (msg.sender != owner() && block.timestamp < expiry){
-            registerUser(tokenId, to, expiry); 
-        }
-        else{
-            revert expired(); 
-        }
+        //execute transfer
+        safeTransferFrom(from, to, tokenId);
+        registerUser(tokenId, to, expiry);
+
     }
 }
