@@ -1,21 +1,33 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity 0.8.13;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "./ERC4907.sol";
+//dependancies updated for use in foundry-rs
+import "lib/ERC4907.sol";
+import "lib/IERC4907.sol";
+import "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
+import "lib/openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
+import "lib/chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-    
-contract millionDollarHomepageNFT is ERC4907, Ownable{
+contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable{
     error expired();
     error registered();
     mapping (uint => string) internal _idToURI;
     uint64 expiryInit;
-    uint price; 
+    uint salePrice; 
+    AggregatorV3Interface internal priceFeed;
     event newURI(string indexed baseURI, uint indexed tokenId);
 
     constructor (string memory name, string memory symbol) ERC4907(name, symbol) {
         expiryInit = (uint64((block.timestamp) + 365 days)); 
-        price = 0 ether;
+        salePrice = 1;
+       // MATIC mainnet, MATIC/USD
+        priceFeed = AggregatorV3Interface(0xAB594600376Ec9fD91F8e885dADF0CE036862dE0);
+    }
+
+
+    function getLatestPrice() public view returns (int) {
+        (,int price,,,) = priceFeed.latestRoundData();
+        return price;
     }
 
     function setUser(uint256 tokenId, address user, uint64 expires) public override onlyOwner{
@@ -30,11 +42,14 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
     }
 
     function setPrice (uint newPrice) external onlyOwner returns (uint){
-        price = newPrice;
-        return price;
+        // in USD
+        salePrice = newPrice;
+        return salePrice;
     }
 
-
+    function getSalePrice () public view returns (uint256) {
+        return (salePrice/(uint256(getLatestPrice()))  * (10**18));
+    }
     function userOf(uint256 tokenId) public view override returns(address){
         if( uint64(block.timestamp) < uint64(_users[tokenId].expires)){
             return  _users[tokenId].user;
@@ -53,13 +68,14 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
     }
 
     function mint (address to, uint tokenId) payable external {
-        require(msg.value >= price, "Insufficient Ether");
+        require(msg.value >= getSalePrice(), "Insufficient MATIC");
         require (!_exists(tokenId), "Already Minted");
+        require(tokenId > 0 && tokenId <= 10000);
         _mint(to, tokenId);
         registerUser(tokenId, to, expiryInit);
     }
     function registerExpiredToken (address to, uint tokenId) external payable{
-        if (userOf(tokenId) == address(0)){
+        if (userOf(tokenId) == address(0) && _exists(tokenId)){
             //payment logic here
             _burn(tokenId);
             _mint(to, tokenId);
@@ -71,7 +87,7 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
     }
 
     // @param newURI: <baseURI, points to decentralized storage>
-     function setBaseURI (string memory newBaseURI, uint tokenId) public {
+     function setBaseURI (string memory newBaseURI, uint tokenId) external {
         require(msg.sender == userOf(tokenId), "not user or expired");
         _idToURI[tokenId] = newBaseURI;
         emit newURI(newBaseURI, tokenId);
@@ -96,12 +112,14 @@ contract millionDollarHomepageNFT is ERC4907, Ownable{
         require(success);
     }
 
-    function transfer (address from, address to, uint tokenId) external {
+    function transferFrom (address from, address to, uint tokenId) public override nonReentrant{
         uint64 expiry = _users[tokenId].expires; 
         //take over lease
         //execute transfer
+        //DO NOT REMOVE nonReentrant modifier, this function would otherwise be reentrant
+        //if I switch the order, the owner is incorrect -- would be address(0)
+        //thus, I'm taking the increased bytecode tradeoff
         safeTransferFrom(from, to, tokenId);
         registerUser(tokenId, to, expiry);
-
     }
 }
