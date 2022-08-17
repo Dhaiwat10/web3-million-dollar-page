@@ -5,10 +5,15 @@ A boilerplate for starting a web3 project.
 This boilerplate quickly creates a mono repo with 2 environments, a Next JS environment for front-end and a Hardhat environment for writing, testing and deploying contracts.
 
 #Set the number of accounts to 15 and their balance to 300 ETH
+
 anvil --accounts 15 --balance 300
+
 #deploy
+
 forge create --rpc-url <your_rpc_url> --private-key <your_private_key> src/MyContract.sol:MyContract
+
 #test contract.t.sol with gas report, verbose logging
+
 forge test --gas-report -vvvvv
 
 
