@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.13;
 
-//dependancies updated for use in foundry-rs
 import "lib/ERC4907.sol";
 import "lib/IERC4907.sol";
 import "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
@@ -13,13 +12,12 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable{
     error registered();
     mapping (uint => string) internal _idToURI;
     uint64 expiryInit;
-    uint salePrice; 
+    mapping (tokenId => uint) public salePrice; 
     AggregatorV3Interface internal priceFeed;
     event newURI(string indexed baseURI, uint indexed tokenId);
 
     constructor (string memory name, string memory symbol) ERC4907(name, symbol) {
         expiryInit = (uint64((block.timestamp) + 365 days)); 
-        salePrice = 1;
        // MATIC mainnet, MATIC/USD
         priceFeed = AggregatorV3Interface(0xAB594600376Ec9fD91F8e885dADF0CE036862dE0);
     }
@@ -71,12 +69,15 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable{
         require(msg.value >= getSalePrice(), "Insufficient MATIC");
         require (!_exists(tokenId), "Already Minted");
         require(tokenId > 0 && tokenId <= 10000);
+        ++salePrice[tokenId];
         _mint(to, tokenId);
         registerUser(tokenId, to, expiryInit);
     }
     function registerExpiredToken (address to, uint tokenId) external payable{
         if (userOf(tokenId) == address(0) && _exists(tokenId)){
             //payment logic here
+            ++salePrice[tokenId];
+            require(msg.value >= getSalePrice(), "Insufficient MATIC");
             _burn(tokenId);
             _mint(to, tokenId);
             registerUser(tokenId, to, expiryInit);
@@ -112,6 +113,9 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable{
         require(success);
     }
 
+    //calls safeTransferFrom
+    //transfers the lease too
+    //don't call safeTransferFrom directly -- your token will transfer but it will be expired.
     function transferFrom (address from, address to, uint tokenId) public override nonReentrant{
         uint64 expiry = _users[tokenId].expires; 
         //take over lease
