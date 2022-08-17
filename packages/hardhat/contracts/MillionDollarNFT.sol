@@ -12,7 +12,7 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable{
     error registered();
     mapping (uint => string) internal _idToURI;
     uint64 expiryInit;
-    mapping (tokenId => uint) public salePrice; 
+    mapping (uint => uint) public salePrice; 
     AggregatorV3Interface internal priceFeed;
     event newURI(string indexed baseURI, uint indexed tokenId);
 
