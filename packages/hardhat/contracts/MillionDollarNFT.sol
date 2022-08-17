@@ -39,14 +39,8 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable{
         emit UpdateUser(tokenId, user, expires);
     }
 
-    function setPrice (uint newPrice) external onlyOwner returns (uint){
-        // in USD
-        salePrice = newPrice;
-        return salePrice;
-    }
-
-    function getSalePrice () public view returns (uint256) {
-        return (salePrice/(uint256(getLatestPrice()))  * (10**18));
+    function getSalePrice (uint tokenId) public view returns (uint256) {
+        return (salePrice[tokenId]/(uint256(getLatestPrice()))  * (10**18));
     }
     function userOf(uint256 tokenId) public view override returns(address){
         if( uint64(block.timestamp) < uint64(_users[tokenId].expires)){
@@ -66,7 +60,7 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable{
     }
 
     function mint (address to, uint tokenId) payable external {
-        require(msg.value >= getSalePrice(), "Insufficient MATIC");
+        require(msg.value >= getSalePrice(tokenId), "Insufficient MATIC");
         require (!_exists(tokenId), "Already Minted");
         require(tokenId > 0 && tokenId <= 10000);
         ++salePrice[tokenId];
@@ -77,7 +71,7 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable{
         if (userOf(tokenId) == address(0) && _exists(tokenId)){
             //payment logic here
             ++salePrice[tokenId];
-            require(msg.value >= getSalePrice(), "Insufficient MATIC");
+            require(msg.value >= getSalePrice(tokenId), "Insufficient MATIC");
             _burn(tokenId);
             _mint(to, tokenId);
             registerUser(tokenId, to, expiryInit);
