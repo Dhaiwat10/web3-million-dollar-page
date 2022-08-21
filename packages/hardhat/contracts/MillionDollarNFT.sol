@@ -52,10 +52,10 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable {
         return interfaceId == type(IERC4907).interfaceId || super.supportsInterface(interfaceId);
     }
     function mint (address to, uint tokenId) payable external {
-        require(msg.value >= getSalePrice(tokenId), "Insufficient MATIC");
         require (!_exists(tokenId), "Already Minted");
         require(tokenId > 0 && tokenId <= 1000000);
         ++salePrice[tokenId];
+        require(msg.value >= getSalePrice(tokenId), "Insufficient MATIC");
         _mint(to, tokenId);
         registerUser(tokenId, to, expiryInit);
     }
