@@ -39,7 +39,7 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable {
     }
     function userOf(uint256 tokenId) public view override returns(address){
         if( uint64(block.timestamp) < uint64(_users[tokenId].expires)){
-            return  _users[tokenId].user;
+            return _users[tokenId].user;
         }
         else{
             return address(0);
