@@ -20,23 +20,29 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable {
         expiryInit = (uint64((block.timestamp) + oneYear)); 
        // MATIC mainnet, MATIC/USD
         priceFeed = AggregatorV3Interface(0xAB594600376Ec9fD91F8e885dADF0CE036862dE0);
-    }
+    } 
+    //calculate price of MATIC in terms of USD 
     function getLatestPrice() public view returns (int) {
         (,int price,,,) = priceFeed.latestRoundData();
         return price;
     }
+    // admin override
     function setUser(uint256 tokenId, address user, uint64 expires) public override onlyOwner{
         registerUser(tokenId, user, expires); 
     }
-    function registerUser (uint tokenId, address user, uint64 expires) internal {
+   //internal function that handles the logic of setting the renter struct
+   function registerUser (uint tokenId, address user, uint64 expires) internal {
         UserInfo storage info =  _users[tokenId];
         info.user = user;
         info.expires = expires;
         emit UpdateUser(tokenId, user, expires);
     }
+    
+    //calculate the amount of matic to equal USD value of sale price
     function getSalePrice (uint tokenId) public view returns (uint256) {
         return (salePrice[tokenId]/(uint256(getLatestPrice()))  * (10**18));
     }
+    //if the token is not expired, then return the address of renter, otherwise return the 0 address
     function userOf(uint256 tokenId) public view override returns(address){
         if( uint64(block.timestamp) < uint64(_users[tokenId].expires)){
             return _users[tokenId].user;
@@ -45,12 +51,14 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable {
             return address(0);
         }
     }
+    //getter for expiration timestamp
     function userExpires(uint256 tokenId) public view override returns(uint256){
         return _users[tokenId].expires;
     }
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return interfaceId == type(IERC4907).interfaceId || super.supportsInterface(interfaceId);
     }
+    //initial mint
     function mint (address to, uint tokenId) payable external {
         require (!_exists(tokenId), "Already Minted");
         require(tokenId > 0 && tokenId <= 1000000);
@@ -59,6 +67,7 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable {
         _mint(to, tokenId);
         registerUser(tokenId, to, expiryInit);
     }
+    //register tokens once expired
     function registerExpiredToken (address to, uint tokenId) external payable{
         require (userOf(tokenId) == address(0), "Registered");
         require (_exists(tokenId));
@@ -69,6 +78,7 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable {
         registerUser(tokenId, to, expiryInit);
         
     }
+    //renew token before expiry
     function renewToken (address to, uint tokenId) external payable {
         require (msg.sender == userOf(tokenId));
         ++salePrice[tokenId];
@@ -103,6 +113,7 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable {
         (bool success,) = to.call {value: address(this).balance}("");
         require(success);
     }
+    //grant grace period to buyers for registration
     function _afterTokenTransfer(
         address /*from*/,
         address to,
