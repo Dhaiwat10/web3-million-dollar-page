@@ -1,31 +1,22 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
 import "lib/ERC4907.sol";
 import "lib/IERC4907.sol";
 import "lib/openzeppelin-contracts/contracts/access/Ownable.sol";
-import "lib/openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
-import "lib/chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable {
+contract millionDollarHomepageNFT is ERC4907, Ownable {
     mapping (uint => string) internal _idToURI;
     uint64 expiryInit;
     uint64 oneYear;
     mapping (uint => uint) public salePrice; 
-    AggregatorV3Interface internal priceFeed;
     event newURI(string indexed baseURI, uint indexed tokenId);
 
     constructor (string memory name, string memory symbol) ERC4907(name, symbol) {
         oneYear = 365 days;
         expiryInit = (uint64((block.timestamp) + oneYear)); 
-       // MATIC mainnet, MATIC/USD
-        priceFeed = AggregatorV3Interface(0xAB594600376Ec9fD91F8e885dADF0CE036862dE0);
     } 
-    //calculate price of MATIC in terms of USD 
-    function getLatestPrice() public view returns (int) {
-        (,int price,,,) = priceFeed.latestRoundData();
-        return price / 1e8;
-    }
+
     // admin override
     function setUser(uint256 tokenId, address user, uint64 expires) public override onlyOwner{
         registerUser(tokenId, user, expires); 
@@ -38,10 +29,6 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable {
         emit UpdateUser(tokenId, user, expires);
     }
     
-    //calculate the amount of matic to equal USD value of sale price
-    function getSalePrice (uint tokenId) public view returns (uint256) {
-         return ((salePrice[tokenId]/(uint256(getLatestPrice())))  * (10**18));
-    }
     //if the token is not expired, then return the address of renter, otherwise return the 0 address
     function userOf(uint256 tokenId) public view override returns(address){
         if( uint64(block.timestamp) < uint64(_users[tokenId].expires)){
@@ -51,34 +38,34 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable {
             return address(0);
         }
     }
+
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return interfaceId == type(IERC4907).interfaceId || super.supportsInterface(interfaceId);
     }
+
     //initial mint
-    function mint (address to, uint tokenId) payable external {
-        require (!_exists(tokenId), "Already Minted");
-        require(tokenId > 0 && tokenId <= 1000000);
-        ++salePrice[tokenId];
-        require(msg.value >= getSalePrice(tokenId), "Insufficient MATIC");
+    function mint (address to, uint tokenId) external payable { 
+        require(tokenId > 0 && tokenId <= 1000000, "invalid id");
+        salePrice[tokenId] += 1 ether;
+        require(msg.value >= salePrice[tokenId], "Insufficient MATIC");
         _mint(to, tokenId);
         registerUser(tokenId, to, expiryInit);
     }
     //register tokens once expired
     function registerExpiredToken (address to, uint tokenId) external payable{
         require (userOf(tokenId) == address(0), "Registered");
-        require (_exists(tokenId));
-        ++salePrice[tokenId];
-        require(msg.value >= getSalePrice(tokenId), "Insufficient MATIC");
+        require (_exists(tokenId), "must exist");
+        salePrice[tokenId] += 1 ether;
+        require(msg.value >= salePrice[tokenId], "Insufficient MATIC");
         _burn(tokenId);
         _mint(to, tokenId);
         registerUser(tokenId, to, expiryInit);
-        
     }
     //renew token before expiry
     function renewToken (address to, uint tokenId) external payable {
         require (msg.sender == userOf(tokenId));
-        ++salePrice[tokenId];
-        require(msg.value >= getSalePrice(tokenId), "Insufficient MATIC");
+        salePrice[tokenId] += 1 ether;
+        require(msg.value >= salePrice[tokenId], "Insufficient MATIC");
         if(to != ownerOf(tokenId)){
             _burn(tokenId);
             _mint(to, tokenId);
