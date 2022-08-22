@@ -24,7 +24,7 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable {
     //calculate price of MATIC in terms of USD 
     function getLatestPrice() public view returns (int) {
         (,int price,,,) = priceFeed.latestRoundData();
-        return price;
+        return price / 1e8;
     }
     // admin override
     function setUser(uint256 tokenId, address user, uint64 expires) public override onlyOwner{
