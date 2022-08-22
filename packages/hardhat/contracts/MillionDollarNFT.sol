@@ -40,7 +40,7 @@ contract millionDollarHomepageNFT is ERC4907, ReentrancyGuard, Ownable {
     
     //calculate the amount of matic to equal USD value of sale price
     function getSalePrice (uint tokenId) public view returns (uint256) {
-        return (salePrice[tokenId]/(uint256(getLatestPrice()))  * (10**18));
+         return ((salePrice[tokenId]/(uint256(getLatestPrice())))  * (10**18));
     }
     //if the token is not expired, then return the address of renter, otherwise return the 0 address
     function userOf(uint256 tokenId) public view override returns(address){
